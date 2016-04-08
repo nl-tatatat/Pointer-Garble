@@ -136,7 +136,7 @@ def add_garble(full_file,head):
     print ("Header: " + "".join(n_head))
     print ("rtTable: " + extra_full_file)
     print ("len index[0]: " + str(len(new_garble[0])))
-    input("s")
+    input("Press enter to get the encoded file. ")
     print ("".join(n_head) + full_file + extra_full_file)
     return (n_head, full_file)
 def get_fake_pointers():
@@ -200,7 +200,7 @@ is_new = True
 garble_list = []
 current_iteration = 0
 print (get_fake_pointers())
-input ("Press enter to get the encoded file. ")
+input ("Press enter. ")
 ffh = add_garble(full_file, header)
 full_file = ffh[0]
 header = ffh[1]
