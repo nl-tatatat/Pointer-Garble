@@ -5,6 +5,29 @@ global rtPointer; #Pointer to relocation table
 global stPointer; #Pointer to string table
 global Checksum; #Note, the integrity of the checksum does not matter in this context, since its function is similar to a key that is not included in the file, nor is the original file included.
 global full_file;
+def list_pointer(pointer): #returns a formatted list from a pointer
+    a = []
+    if type(pointer) == str:
+      for i in range(0,len(pointer), 2):
+          a.append(pointer[i: i + 1])
+    elif type(pointer) == list:
+      if type(pointer[0]) == list:
+          if len(pointer[0]) == 2:
+              return pointer
+      s = "".join(pointer)
+      a = []
+      for i in  range(0,len(s), 2):
+          a.append(s[i: i + 1])
+      return s
+    elif type(pointer) in (int, float):
+      for i in range(0,len(str(int(pointer))), 2):
+          a.append(str(int(pointer))[i: i + 1])
+    return a
+def unlist_pointer(pointer):
+    if type(pointer) == list:
+      return "".join(pointer)
+    else:
+      return str(pointer)
 def format_pointer(pointer):
     if type(pointer) == int:
       new_pointer = str(hex(pointer))[2::].upper()
@@ -22,8 +45,8 @@ def unformat_pointer(pointer):
 def get_garble():
     #outputs garble and pointers
     #print (full_file)
-    gStart = random.randrange(1,rtPointer - 4, 8)
-    gLength = random.randrange(1,30, 8)
+    gStart = random.randrange(1,rtPointer - 4, 4)
+    gLength = random.randrange(1,30, 4)
     # ^^^  region of data
     """
     if gStart + gLength >= rtPointer:
@@ -36,17 +59,17 @@ def get_garble():
     except: #Virtual EOF Error
         #input_data = full_file[gStart:len(full_file) - 1]
         gLength = len(full_file) - 1 - gStart
-    if gLength % 8 != 0:
-        gStart -= gLength % 8
-        gLength += gLength % 8
+    if gLength % 4 != 0:
+        gStart -= gLength % 4
+        gLength += gLength % 4
         input_data = full_file[gStart:gStart + gLength]
-    if gStart > (len(full_file) - 8):
-        gStart -= gStart - (len(full_file) - 8)
-        gLength += gStart - (len(full_file) - 8)
+    if gStart > (len(full_file) - 4):
+        gStart -= gStart - (len(full_file) - 4)
+        gLength += gStart - (len(full_file) - 4)
         input_data = full_file[gStart:gStart + gLength]
-    if gLength < 8:
-        gStart -= 8 - gLength
-        gLength += 8 - gLength
+    if gLength < 4:
+        gStart -= 4 - gLength
+        gLength += 4 - gLength
         input_data = full_file[gStart:gStart + gLength]
     new = ""
     garble_length = random.randrange(1,30) * 2
@@ -58,7 +81,7 @@ def get_garble():
         new = new + garble
     start_pointer = format_pointer(int(gStart / 2)); pointer_length = format_pointer(int(gLength / 2));
     real_data_pointer = format_pointer("0")
-    return [new, start_pointer, pointer_length, input_data, gStart, gLength, real_data_pointer, garble_length]
+    return [list_pointer(new), start_pointer, pointer_length, input_data, gStart, gLength, real_data_pointer, garble_length]
 """
 def add_garble(full_file,head):
     new_garble = get_garble()
@@ -99,38 +122,44 @@ def add_garble(full_file,head):
     n_head[2] = format_pointer(((unformat_pointer(n_head[2])) + int(float(extra_garble[1]) / 2) + (int(float(len(new_garble[0])) / 2))))
     print ("len of n_head: " + str(len("".join(n_head))))
     print ("new_n_head: " + n_head[1])
-    real_data_position = len(full_file[0: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[0]):rtPointer]) + len(new_garble[3])
+    real_data_position = len(full_file[0: new_garble[4]]) + (len(new_garble[0]) / 2) + len(full_file[new_garble[4] + len(new_garble[0]):rtPointer]) + len(new_garble[3])
     if (real_data_position - len(new_garble[3]) + 1) % 8 != 0:
-        spacing = ("0" * ((real_data_position - len(new_garble[3]) + 1) % 8))
+        spacing = ("0" * int(((real_data_position - len(new_garble[3]) + 1) % 8)))
         if len(spacing) % 2 != 0:
             spacing = spacing + "0"
         if (real_data_position + len(spacing)) % 8 != 0:
-            spacing = ("0" * ((real_data_position - len(new_garble[3]) + 1) % 8))
+            spacing = ("0" * int((real_data_position - len(new_garble[3]) + 1) % 8))
         if len(spacing) % 2 != 0:
             spacing = spacing + "0"
         n_head[1] = format_pointer(int(float(((unformat_pointer(n_head[1]) * 2)) + 8) / 2))
         n_head[2] = format_pointer(unformat_pointer(n_head[2]) + 4)
+        a = spacing
+        spacing = []
+        for i in range(0,len(a),2):
+            spacing.append(a[i:i + 1])
+            
+            
     else:
         spacing = ""
     fake_pointers = get_fake_pointers()
     #full_file = full_file[0: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + new_garble[3] + extra_garble[0] + full_file[rtPointer::] + str(new_garble[1]) + str(new_garble[2]) + str(format_pointer(real_data_position))
-    extra_full_file = full_file[rtPointer:] +  format_pointer(16 + len(full_file[:new_garble[4]]) + len(new_garble[0]) + len(full_file[new_garble[4] + new_garble[5]: rtPointer]) + len(spacing)) + str(format_pointer((unformat_pointer(real_data_position) / 2) + 12 + (len(spacing) / 2))) + str(format_pointer(unformat_pointer(new_garble[1]) / 2)) + str(format_pointer(unformat_pointer(new_garble[2]) / 2)) + str(format_pointer(len(new_garble[0]))) + str(fake_pointers)
+    extra_full_file = full_file[rtPointer:] +  list_pointer(format_pointer(16 + len(full_file[:new_garble[4]]))) + list_pointer(len(new_garble[0])) + list_pointer(len(full_file[unformat_pointer(new_garble[1]) + unformat_pointer(new_garble[2]): rtPointer])) + list_pointer(len(spacing)) + list_pointer(str(format_pointer((unformat_pointer(real_data_position) / 2) + 12 + (len(spacing) / 2)))) + list_pointer(str(format_pointer(unformat_pointer(new_garble[1]) / 2))) + list_pointer(str(format_pointer(unformat_pointer(new_garble[2]) / 2))) + list_pointer(str(format_pointer(len(new_garble[0]) / 2))) + list_pointer(str(fake_pointers))
     # str(format_pointer(unformat_pointer(real_data_position) + len(spacing)))
     #full_file = full_file[0: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + new_garble[3] + extra_garble[0]  + full_file[rtPointer::] + str(format_pointer(real_data_position)) + str(new_garble[1]) + str(new_garble[2])
-    print ("index[0]: " + new_garble[0])
-    print ("index[3]: " + new_garble[3])
-    if new_garble[3] == "" or (len(new_garble[3]) < 8):
+    print ("index[0]: " + "".join(new_garble[0]))
+    print ("index[3]: " + unlist_pointer(new_garble[3]))
+    if new_garble[3] == [] or (len(new_garble[3]) < 4):
         print ("gLength: " + str(new_garble[5]))
         print ("gStart: " + str(new_garble[4]))
     print ("extra_garble: " + str(extra_garble[0]))
     print ("extra_garble[1]: " + str(extra_garble[1]))
     if (real_data_position - len(new_garble[3]) + 1) % 8 != 0:
-        full_file = full_file[: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + spacing + new_garble[3] + extra_garble[0]
-        extra_full_file = ("0" * (8 - len(spacing))) + extra_full_file
+        full_file = full_file[: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + spacing + new_garble[3] + list_pointer(extra_garble[0])
+        extra_full_file = list_pointer("0" * (4 - len(spacing))) + list_pointer(extra_full_file)
                            
     else:
-        spacing = ""
-        full_file = full_file[: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + new_garble[3] + extra_garble[0]
+        spacing = [""]
+        full_file = full_file[: new_garble[4]] + new_garble[0] + full_file[new_garble[4] + len(new_garble[3]):rtPointer] + new_garble[3] + list_pointer(extra_garble[0])
     #need to readjust pointers and stuff for spacing
     print ("Full_file: " + full_file)
     print ("Header: " + "".join(n_head))
@@ -182,18 +211,20 @@ for b in bytes_read: #reads the bytes of the file and places them in a list
     #print(full_file)
 #print (read_binary(my_file))
 #print (md5)
+"""
 a = full_file
 full_file = ""
 for i in a:
     full_file = str(full_file) + str(i)[2::]
+"""
 Checksum = (str(bin(int("0x" + md5, 16))))[2:] #binary md5
-fileSize = len(full_file * 2)
+fileSize = len(full_file)
 rtPointer = fileSize
 
 print(Checksum)
 afile.close()
 input("Press enter to continue... ")
-header = [fileSize, rtPointer, int(float(rtPointer) / 4) + 16, "00000000"]
+header = [fileSize, rtPointer, int(float(rtPointer) / 2) + 16, "00000000"]
 global garble_list;
 global is_new;
 is_new = True
